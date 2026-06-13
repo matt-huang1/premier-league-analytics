@@ -1,5 +1,24 @@
+"""
+Ingestion pipeline for the Premier League Analytics project.
+
+Reads five seasons of match CSVs (2019-20 through 2023-24) from football-data.co.uk,
+normalises team names and abbreviations, and loads them into a local PostgreSQL database
+(prem_analytics) using SQLAlchemy.  Teams and seasons are inserted once; matches are
+appended each run (re-running will duplicate rows — truncate the matches table first if
+you need a clean reload).
+
+Usage:
+    Copy .env.example to .env and fill in DATABASE_URL, then:
+        pip install pandas sqlalchemy psycopg2-binary python-dotenv
+        python3 ingest.py
+"""
+
+import os
 import pandas as pd
 from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
+
+load_dotenv()
 
 TEAM_NAME_MAP = {
     "Arsenal": "Arsenal",
@@ -96,7 +115,7 @@ SEASONS_DATA = [
     {"season_id": 202324, "season_label": "2023/24", "start_date": "2023-08-11", "end_date": "2024-05-19"}
 ]
 
-engine = create_engine("postgresql://matthewhuang:@localhost:5432/prem_analytics")
+engine = create_engine(os.environ["DATABASE_URL"])
 
 def insert(table_name, table_data):
     with engine.connect() as conn:

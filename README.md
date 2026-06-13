@@ -1,36 +1,138 @@
-# premier-league-analytics
+# Premier League Analytics
 
-This is a Premier League Analytics Dashboard, a relational PostgreSQL database populated from real match data, queried with analytical SQL, and visualised in Tableau. With 1900 matches across 5 seasons, there are lots of insights to be unearthed.
+A relational analytics project covering **1,900 matches across five Premier League seasons (2019/20 – 2023/24)**. Match data is ingested from raw CSVs into a normalised PostgreSQL database, queried with analytical SQL (window functions, CTEs, difference-in-differences), and visualised in Tableau.
 
-Tech Stack: Database: PostgreSQL (local install) Ingestion: Python with pandas and SQLAlchemy Visualisation: Tableau (connected live to PostgreSQL, no CSV exports) Data source: football-data.co.uk, free CSV downloads, 5 recent Premier League seasons (2019/20 through 2023/24)
-
-Database Schema:  teams: Has details on the team abbreviation ID, full name, city, stadium and founded year.  seasons: Has season ID based on years, full season label, start and end dates. matches: Unique serial ID for each match, corresponding to each season, date of kick off, home and away team IDs, stats like goals scored, shots taken, shots on target, corners and bookings. standings: Standing tables for each season, with matches played, total number of wins, draws and losses, goals for and against, goal difference and points.
-
-8 queries:
-
-1. Derived the full league table from match results using GROUP BY, CASE WHEN for points, ORDER BY points, goal difference.
-2. Average home win rate and goals scored for home and away per season to examine the home advantage effect.
-3. Derived a form table over the last 6 games for each team at each point in the season using ROW NUMBER() OVER (PARTITION BY team ORDER BY match_date) and CTEs.
-4. Analysed shot conversion efficiency and ranked using RANK() OVER (PARTITION BY season ORDER BY conversion_rate DESC).
-5. Analysed historical head to head records of any two teams, getting the total wins, draws, losses, goals for and against.
-6. Analysed the highest scoring match combinations by most goals per game on average, filtered for having met at least 4 times for more reliable results.
-7. Rolling discipline analysis of each team per season using AVG() OVER (PARTITION BY team ORDER BY season ROWS BETWEEN 2 PRECEDING AND CURRENT ROW).
-8. Analysed the effect of COVID, comparing home win rates in the 2019/20 and 2020/21 seasons against surrounding seasons by doing difference-in-differences.
-
-The most interesting results were:
-how MCI performed at a consistent high level, ranking top 2 for shot conversion in 4 of the 5 seasons, 
-the effect of COVID on performance, seeing the home win rate dropping from 45.3% to 37.9% in the 2020/21 season where there were no fans, before increasing back to 48.4% in 2022/23
-Sheffield United were the worst performing club in a season in the dataset, getting 16 points with -69 goal difference in 2023/24 season. 
-
-How to run: 
-
-* Clone the repo
-* Install dependencies — `pip install pandas sqlalchemy psycopg2-binary`
-* Create the database — `createdb prem_analytics`
-* Run schema — `psql -d prem_analytics -f schema.sql`
-* Run ingestion — `python3 ingest.py`
-
-Screenshots:
 ![League Overview](screenshots/League_Overview.png)
+
+---
+
+## Tech Stack
+
+| Layer | Tool |
+|---|---|
+| Database | PostgreSQL 15 (local) |
+| Ingestion | Python 3 — pandas, SQLAlchemy, python-dotenv |
+| Analysis | SQL — window functions, CTEs |
+| Visualisation | Tableau Desktop (live PostgreSQL connection) |
+| Data source | [football-data.co.uk](https://www.football-data.co.uk) — free CSV downloads |
+
+---
+
+## Database Schema
+
+```
+teams        — club metadata (abbreviation, full name, city, stadium, founded year)
+seasons      — one row per season with start/end dates
+matches      — one row per match; home/away goals, shots, corners, bookings
+standings    — pre-computed end-of-season table (also derivable via query1)
+```
+
+See [schema.sql](schema.sql) for full `CREATE TABLE` statements with FK constraints, or [ERD.png](ERD.png) for the entity-relationship diagram.
+
+---
+
+## Running Locally
+
+### Prerequisites
+
+- PostgreSQL 15+ installed and running
+- Python 3.9+
+
+### Setup
+
+```bash
+# 1. Clone the repo
+git clone <repo-url>
+cd premier-league
+
+# 2. Install Python dependencies
+pip install pandas sqlalchemy psycopg2-binary python-dotenv
+
+# 3. Create the database
+createdb prem_analytics
+
+# 4. Apply the schema
+psql -d prem_analytics -f schema.sql
+
+# 5. Configure the database connection
+cp .env.example .env
+# Edit .env and set DATABASE_URL, e.g.:
+# DATABASE_URL=postgresql://your_username:your_password@localhost:5432/prem_analytics
+
+# 6. Run the ingestion pipeline
+python3 ingest.py
+```
+
+The pipeline is idempotent for the `teams` and `seasons` tables (skips if rows already exist). The `matches` table is appended on each run — truncate it first if you need a clean reload.
+
+> **Note:** The raw CSV files (`2019-20.csv` through `2023-24.csv`) are excluded from this repo via `.gitignore` due to size. Download them from [football-data.co.uk](https://www.football-data.co.uk/englandm.php) and place them in the project root before running `ingest.py`.
+
+### Connecting Tableau
+
+1. Open Tableau Desktop → Connect → PostgreSQL
+2. Server: `localhost`, Port: `5432`, Database: `prem_analytics`
+3. Enter your PostgreSQL credentials
+4. The four tables (`teams`, `seasons`, `matches`, `standings`) will appear in the schema browser
+
+---
+
+## Queries
+
+| File | Business Question |
+|---|---|
+| [query1_standings.sql](query1_standings.sql) | Full league table derived from raw match results |
+| [query2_home_advantage.sql](query2_home_advantage.sql) | Home win rate and goals per season |
+| [query3_form_table.sql](query3_form_table.sql) | Rolling 6-game form for each team at every match day |
+| [query4_shot_conversion.sql](query4_shot_conversion.sql) | Shot-on-target conversion rate, ranked within each season |
+| [query5_head_to_head.sql](query5_head_to_head.sql) | All-time head-to-head record between any two clubs |
+| [query6_high_scoring_pairs.sql](query6_high_scoring_pairs.sql) | Fixture pairings with the highest average goals per game |
+| [query7_discipline.sql](query7_discipline.sql) | Rolling 3-season average yellow and red cards per club |
+| [query8_covid_analysis.sql](query8_covid_analysis.sql) | Difference-in-differences analysis of COVID's effect on home advantage |
+
+---
+
+## Key Findings
+
+### 1. COVID eliminated the home advantage
+
+Home win rate fell from **45.3% in 2019/20** to **37.9% in 2020/21** — the season played entirely behind closed doors. Average home goals (1.353) converged with average away goals (1.342), erasing the usual goal-scoring edge. After fans returned, win rates recovered, peaking at **48.4% in 2022/23**. The data strongly suggests crowd support is a material factor in home performance, not just a correlate.
+
+> Caveat: the 2019/20 baseline is slightly contaminated — matches from March 2020 onwards were played without fans after the season's restart, compressing the apparent pre-COVID advantage.
+
+### 2. High shot conversion doesn't guarantee a high league finish
+
+Tottenham finished 6th (2019/20) and 4th (2020/21) despite ranking 2nd and 1st in shot conversion both seasons. West Ham ranked 2nd in conversion in 2021/22 and 2023/24, finishing 7th and 9th respectively. Conversion efficiency likely inflates for teams that take fewer, higher-quality shots — volume and defensive solidity matter too.
+
+### 3. Manchester City vs Watford is the highest-scoring fixture in the dataset
+
+Averaging **5.5 goals per game** across four meetings, it tops the fixture table. More durable examples include Leicester City vs Tottenham (8 meetings, 4.5 goals/game) and Newcastle United vs West Ham (10 meetings, 4.3 goals/game) — consistent high-scoring pairings across the full five-season span.
+
+---
+
+## Dashboard Screenshots
+
 ![COVID Dashboard](screenshots/COVID_Dashboard.png)
 ![Shot Conversion](screenshots/Shot_Conversion_Dashboard.png)
+
+---
+
+## Project Structure
+
+```
+premier-league/
+├── schema.sql                   # CREATE TABLE statements
+├── ingest.py                    # CSV → PostgreSQL ingestion pipeline
+├── query1_standings.sql         # League table from raw results
+├── query2_home_advantage.sql    # Home advantage by season
+├── query3_form_table.sql        # Rolling 6-game form
+├── query4_shot_conversion.sql   # Shot conversion ranking
+├── query5_head_to_head.sql      # Head-to-head record
+├── query6_high_scoring_pairs.sql # Highest-scoring fixtures
+├── query7_discipline.sql        # Rolling discipline trend
+├── query8_covid_analysis.sql    # COVID difference-in-differences
+├── insights_summary.md          # Plain-English briefing note
+├── ERD.png                      # Entity-relationship diagram
+├── screenshots/                 # Tableau dashboard screenshots
+├── .env.example                 # Database connection template
+└── .gitignore
+```

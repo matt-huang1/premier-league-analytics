@@ -1,23 +1,35 @@
+-- Business question: What is each team's rolling 6-game form (points) at every
+--   match day within a season?
+-- Technique: CTE to unpivot home/away rows and assign points; ROW_NUMBER() for match
+--   sequence; SUM() window with ROWS BETWEEN 5 PRECEDING AND CURRENT ROW for the
+--   rolling 6-game window.
+
 WITH combined_matches AS (
-    SELECT home_team_id AS team_id, season_id, match_date, 
-        CASE    
-            WHEN home_goals > away_goals THEN +3
-            WHEN home_goals = away_goals THEN +1
-            WHEN home_goals < away_goals THEN +0
+    SELECT
+        home_team_id AS team_id,
+        season_id,
+        match_date,
+        CASE
+            WHEN home_goals > away_goals THEN 3
+            WHEN home_goals = away_goals THEN 1
+            ELSE 0
         END AS points
     FROM matches
 
-UNION ALL 
+    UNION ALL
 
-    SELECT away_team_id AS team_id, season_id, match_date, 
+    SELECT
+        away_team_id AS team_id,
+        season_id,
+        match_date,
         CASE
-            WHEN home_goals < away_goals THEN +3
-            WHEN home_goals = away_goals THEN +1
-            WHEN home_goals > away_goals THEN +0
+            WHEN home_goals < away_goals THEN 3
+            WHEN home_goals = away_goals THEN 1
+            ELSE 0
         END AS points
     FROM matches
 )
-SELECT 
+SELECT
     team_id,
     season_id,
     match_date,
@@ -28,6 +40,3 @@ SELECT
         ROWS BETWEEN 5 PRECEDING AND CURRENT ROW
     ) AS form
 FROM combined_matches;
---WHERE team_id = 'CHE';
-
--- In the CTE, combined all matches (home + away) and made points column, then used a rolling window function with frame clause to get last 6 match form
