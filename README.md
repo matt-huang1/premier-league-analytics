@@ -1,3 +1,11 @@
+<div align="center">
+
+![Python](https://img.shields.io/badge/Python-3.13-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18.1-blue)
+![Tableau](https://img.shields.io/badge/Tableau-Desktop-orange)
+
+</div>
+
 # Premier League Analytics
 
 A relational analytics project covering **1,900 matches across five Premier League seasons (2019/20 to 2023/24)**. Match data is ingested from raw CSVs into a normalised PostgreSQL database, queried with analytical SQL (window functions, CTEs, difference-in-differences), and visualised in Tableau.
@@ -10,7 +18,7 @@ A relational analytics project covering **1,900 matches across five Premier Leag
 
 | Layer | Tool |
 |---|---|
-| Database | PostgreSQL 15 (local) |
+| Database | PostgreSQL 18.1 (local) |
 | Ingestion | Python 3 (pandas, SQLAlchemy, python-dotenv) |
 | Analysis | SQL (window functions, CTEs) |
 | Visualisation | Tableau Desktop (live PostgreSQL connection) |
@@ -35,7 +43,7 @@ See [schema.sql](schema.sql) for full `CREATE TABLE` statements with FK constrai
 
 ### Prerequisites
 
-- PostgreSQL 15+ installed and running
+- PostgreSQL 18.1+ installed and running
 - Python 3.9+
 
 ### Setup
